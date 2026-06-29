@@ -4,7 +4,11 @@ A browser-based, webcam-driven live-visuals tool for DJs. It is **not** a
 replacement for an existing VJ rig — it's an extra, self-contained visual
 source you can point a camera at, react to the music, and throw on a screen.
 
-This document is the design/plan. No app code is committed yet.
+This document is the design/plan. **Status: a working v1 is now built** —
+`index.html` + `src/main.js` cover milestones 1–5 below (camera pipeline,
+effect rack, audio sync, one-tap Looks, presets, clean output window). See
+`README.md` for usage. The sections below remain the reference for the
+architecture and what's still open.
 
 ## Goals & non-goals
 

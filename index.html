@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Visuals</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden;
+    font: 13px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: #cfd2d6; }
+  #stage { position: fixed; inset: 0; }
+  #gl { width: 100%; height: 100%; display: block; }
+
+  /* control panel */
+  #panel { position: fixed; top: 0; left: 0; height: 100%; width: 320px;
+    background: rgba(10,11,13,.82); backdrop-filter: blur(8px);
+    border-right: 1px solid #23262b; padding: 14px; overflow-y: auto;
+    transition: transform .18s ease; }
+  #panel.hidden { transform: translateX(-100%); }
+  h1 { font-size: 13px; letter-spacing: .12em; text-transform: uppercase;
+    margin: 0 0 12px; color: #8a8f98; }
+  .grp { border: 1px solid #20242a; border-radius: 8px; padding: 10px;
+    margin-bottom: 10px; background: rgba(255,255,255,.015); }
+  .grp > .head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .grp > .head .name { font-weight: 600; color: #e6e8ea; flex: 1;
+    text-transform: capitalize; }
+  label.row { display: grid; grid-template-columns: 84px 1fr 34px;
+    align-items: center; gap: 8px; margin: 6px 0; color: #9aa0a8; }
+  label.row .v { text-align: right; color: #cfd2d6; }
+  input[type=range] { width: 100%; accent-color: #5ad; }
+  select, button { font: inherit; color: #cfd2d6; background: #15181c;
+    border: 1px solid #2a2f36; border-radius: 6px; padding: 5px 8px; }
+  button { cursor: pointer; }
+  button:hover { border-color: #3a4049; }
+  button.active { background: #25406a; border-color: #3a6; color: #fff; }
+  .toggle { width: 34px; height: 20px; border-radius: 12px; background: #2a2f36;
+    position: relative; cursor: pointer; flex: 0 0 auto; transition: background .12s; }
+  .toggle.on { background: #2f7d4f; }
+  .toggle::after { content: ""; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; border-radius: 50%; background: #cfd2d6;
+    transition: transform .12s; }
+  .toggle.on::after { transform: translateX(14px); background: #fff; }
+  .pill { font-size: 10px; padding: 1px 6px; border-radius: 10px;
+    background: #1d2128; color: #6e7480; }
+  .pill.bass { color: #ff6b6b; } .pill.mid { color: #ffd166; } .pill.high { color: #6bd3ff; }
+  .pill.beat { color: #b388ff; }
+  .row2 { display: flex; gap: 6px; flex-wrap: wrap; }
+  .row2 > * { flex: 1; }
+  #meters { display: flex; gap: 4px; height: 38px; align-items: flex-end; margin: 4px 0 10px; }
+  #meters .bar { flex: 1; background: #1a1d22; border-radius: 3px 3px 0 0;
+    position: relative; height: 100%; overflow: hidden; }
+  #meters .bar > i { position: absolute; bottom: 0; left: 0; right: 0; display: block; }
+  #meters .bar.b > i { background: #ff6b6b; } #meters .bar.m > i { background: #ffd166; }
+  #meters .bar.h > i { background: #6bd3ff; } #meters .bar.l > i { background: #7c8088; }
+  #beatdot { width: 10px; height: 10px; border-radius: 50%; background: #2a2f36;
+    margin-left: 6px; align-self: center; }
+  .hint { color: #5a5f68; font-size: 11px; margin-top: 2px; }
+  #hud { position: fixed; bottom: 10px; right: 12px; text-align: right;
+    color: #4a4f58; font-size: 11px; pointer-events: none; }
+  #start { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: #000; z-index: 10; flex-direction: column; gap: 14px; }
+  #start button { font-size: 15px; padding: 12px 22px; background: #1b2330; border-color: #2f4a6a; }
+  #start .sub { color: #6e7480; max-width: 320px; text-align: center; }
+  #blackoutFlash { position: fixed; inset: 0; background: #000; opacity: 0;
+    pointer-events: none; transition: opacity .12s; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="gl"></canvas></div>
+<div id="blackoutFlash"></div>
+
+<div id="start">
+  <button id="startBtn">▶ Start visuals</button>
+  <div class="sub">Grants camera + microphone. Point the mic at your speakers (or use line-in / loopback) so the visuals lock to the music.</div>
+</div>
+
+<aside id="panel">
+  <h1>Visuals <span style="float:right;color:#4a4f58">[H] hide</span></h1>
+
+  <div class="grp">
+    <div class="head"><span class="name">Audio sync</span><span id="beatdot"></span></div>
+    <div id="meters">
+      <div class="bar b"><i></i></div><div class="bar m"><i></i></div>
+      <div class="bar h"><i></i></div><div class="bar l"><i></i></div>
+    </div>
+    <label class="row">sensitivity <input id="a_sens" type="range" min="1" max="3" step="0.01" value="1.4"><span class="v"></span></label>
+    <label class="row">beat decay <input id="a_decay" type="range" min="0.05" max="0.6" step="0.01" value="0.18"><span class="v"></span></label>
+    <label class="row">reactivity <input id="a_gain" type="range" min="0" max="2" step="0.01" value="1"><span class="v"></span></label>
+    <div class="row2" style="margin-top:8px">
+      <select id="audioInput" title="Audio input"></select>
+      <select id="videoInput" title="Camera"></select>
+    </div>
+    <div class="hint">Bass→motion · Mid→colour · Highs→detail · Beat→hits</div>
+  </div>
+
+  <div class="grp">
+    <div class="head"><span class="name">Looks</span><span class="pill">one tap</span></div>
+    <div id="looks" class="row2"></div>
+    <div class="hint">One tap = a whole look. Use ← → to flick between them live.</div>
+  </div>
+
+  <div id="effects"></div>
+
+  <div class="grp">
+    <div class="head"><span class="name">Show</span></div>
+    <div class="row2">
+      <button id="outBtn">Output → screen [O]</button>
+    </div>
+    <div class="row2" style="margin-top:6px">
+      <button id="blackoutBtn">Blackout [B]</button>
+      <button id="fsBtn">Fullscreen [F]</button>
+    </div>
+    <div class="row2" style="margin-top:6px">
+      <select id="presetSel"></select>
+      <button id="savePreset">Save</button>
+    </div>
+    <div class="row2" style="margin-top:6px">
+      <button id="exportBtn">Export</button>
+      <button id="importBtn">Import</button>
+    </div>
+  </div>
+</aside>
+
+<div id="hud">[H] panel · [B] blackout · [F] fullscreen · [1–7] effects · [Space] freeze</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
